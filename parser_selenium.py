@@ -12,7 +12,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
-
 options = Options()
 options.add_argument("--headless")  # Запускаем без GUI
 options.add_argument("--no-sandbox")  # Запускаем без sandbox (для работы в контейнерах)
@@ -67,7 +66,7 @@ for cat in tqdm(categories):
 
             except Exception as e:
                 print(e)
-        with open('ods_from_wb2.json', 'w', encoding='utf-8') as f:
+        with open('ods_from_wb.json', 'w', encoding='utf-8') as f:
             json.dump(all_products, f, ensure_ascii=False, indent=4)
 
     except Exception as e:
