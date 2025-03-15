@@ -84,7 +84,7 @@ async def process_category(category, context, session, semaphore):
             ids.extend(ids_chunk)
         if len(ids) >= required_count:
             break
-    print(len(ids))
+
     product_limit = min(len(ids), required_count)
     tasks = [
         asyncio.create_task(process_product(category_name, ids[i], context, semaphore))
