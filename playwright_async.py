@@ -87,7 +87,7 @@ async def process_category(category, context, session, semaphore):
             break
 
     product_limit = min(len(ids), required_count)
-    print('c')
+    print(category)
     tasks = [
         asyncio.create_task(process_product(category_name, ids[i], context, semaphore))
         for i in range(product_limit)
