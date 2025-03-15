@@ -37,17 +37,22 @@ async def process_product(category_name, product_id, context, semaphore):
         try:
             print('a')
             await page.goto(f'https://www.wildberries.ru/catalog/{product_id}/detail.aspx', timeout=60000)
+            print('b')
             await page.wait_for_selector('.product-page__title', timeout=30000)
+            print('c')
             prod_name = await page.locator('.product-page__title').first.inner_text()
+            print('d')
 
             # Нажимаем кнопку "Подробнее"
             await page.locator('.product-page__btn-detail').first.click()
+            print('e')
             await page.wait_for_selector('.product-params__cell-decor', timeout=30000)
+            print('f')
 
             info_names = await page.locator('.product-params__cell-decor').all_text_contents()
             info_data = await page.locator('.product-params__cell').all_text_contents()
             price = await page.locator('.price-block__final-price').first.inner_text()
-
+            print('g')
             info = {}
             for s in range(len(info_names)):
                 info[info_names[s]] = info_data[s]
@@ -59,7 +64,7 @@ async def process_product(category_name, product_id, context, semaphore):
                 'category': category_name,
                 'price': price
             }
-            print('b')
+            print('finish')
             return product
 
         except Exception as e:
