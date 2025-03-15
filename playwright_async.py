@@ -5,7 +5,7 @@ from tqdm.asyncio import tqdm_asyncio
 from playwright.async_api import async_playwright
 
 async def fetch_product_ids(session, category_name, page_num):
-    url = f"https://search.wb.ru/exactmatch/ru/common/v9/search?page={page_num}&query={category_name}"
+    url = f"https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false"
     try:
         async with session.get(url, timeout=10) as response:
             data = await response.json()
