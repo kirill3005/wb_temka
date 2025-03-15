@@ -33,7 +33,7 @@ async def process_product(page, product_id, category):
     Функция для обработки одного продукта: переходит на страницу товара, извлекает данные и возвращает словарь.
     """
     try:
-        await page.goto(f'https://www.wildberries.ru/catalog/{product_id}/detail.aspx', timeout=60000)
+        await page.goto(f'https://www.wildberries.ru/catalog/{product_id}/detail.aspx')
         await page.wait_for_selector('.product-page__title', timeout=30000)
         prod_name = await page.locator('.product-page__title').first.inner_text()
         await page.locator('.product-page__btn-detail').first.click()
