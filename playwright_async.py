@@ -20,14 +20,14 @@ async def fetch_product_ids(session, category_name, page_num):
 async def parse_product(page, product_id, category_name):
     try:
         await page.goto(f"https://www.wildberries.ru/catalog/{product_id}/detail.aspx", timeout=60000)
-        
+        print('a')
         # Ожидаем загрузки элементов
         await page.wait_for_selector('.product-page__title', timeout=30000)
         await page.wait_for_selector('.product-page__btn-detail', timeout=30000)
-        
+        print('b')
         # Кликаем на кнопку "Подробнее"
         await page.locator('.product-page__btn-detail').first.click()
-        
+        print('c')
         # Собираем данные
         prod_name = await page.locator('.product-page__title').first.inner_text()
         price = await page.locator('.price-block__final-price').first.inner_text()
@@ -35,7 +35,7 @@ async def parse_product(page, product_id, category_name):
         # Собираем характеристики
         info_names = await page.locator('.product-params__cell-decor').all_text_contents()
         info_data = await page.locator('.product-params__cell').all_text_contents()
-        
+        print('product parsed sucess')
         return {
             'id': product_id,
             'name': prod_name,
