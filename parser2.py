@@ -10,17 +10,10 @@ all_products = []
 variants = ['stationery3', 'appliances2', '']
 
 with sync_playwright() as p:
-    # Отключаем ненужные ресурсы
     browser = p.chromium.launch(headless=True)
     context = browser.new_context(
         user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'
     )
-
-    # Отключаем изображения и шрифты для ускорения загрузки
-    context.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "font"] else route.continue_())
-
-    page = context.new_page()
-    context.set_default_timeout(10000)  # Уменьшаем глобальный таймаут
 
     for cat in tqdm(categories):
         i = cat['cat_name']
@@ -43,25 +36,24 @@ with sync_playwright() as p:
                 if len(ids) >= 100 - cat['count']:
                     break
 
+            # Используем несколько страниц одновременно
             for h in tqdm(range(min(len(ids), 100 - cat['count']))):
                 try:
-                    page.goto(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx', wait_until="domcontentloaded", timeout=10000)
+                    product_page = context.new_page()
+                    product_page.goto(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx', wait_until="networkidle", timeout=10000)
 
-                    # Ждем появления заголовка
-                    prod_name = page.locator('.product-page__title').first.inner_text(timeout=5000)
+                    # Получаем название товара
+                    prod_name = product_page.locator('.product-page__title').first.inner_text()
 
-                    # Кликаем на кнопку "Подробнее" без анимаций
-                    btn = page.locator('.product-page__btn-detail').first
+                    # Проверяем, есть ли кнопка "Подробнее"
+                    btn = product_page.locator('.product-page__btn-detail').first
                     if btn.is_visible():
-                        btn.evaluate("node => node.click()")  # Быстрый клик без задержек
+                        btn.click()
 
-                    # Ждем загрузки параметров
-                    page.locator('.product-params__cell-decor').first.wait_for(timeout=5000)
-
-                    # Собираем данные
-                    info_names = page.locator('.product-params__cell-decor').all_text_contents()
-                    info_data = page.locator('.product-params__cell').all_text_contents()
-                    price = page.locator('.price-block__final-price').first.inner_text(timeout=5000)
+                    # Получаем параметры товара
+                    info_names = product_page.locator('.product-params__cell-decor').all_text_contents()
+                    info_data = product_page.locator('.product-params__cell').all_text_contents()
+                    price = product_page.locator('.price-block__final-price').first.inner_text()
 
                     info = {info_names[s]: info_data[s] for s in range(len(info_names))}
 
@@ -72,6 +64,8 @@ with sync_playwright() as p:
                         'category': i,
                         'price': price
                     })
+
+                    product_page.close()  # Закрываем страницу
 
                 except Exception as e:
                     print(f"Ошибка при обработке товара {ids[h]}: {str(e)}")
