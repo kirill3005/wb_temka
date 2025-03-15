@@ -5,13 +5,15 @@ from tqdm.asyncio import tqdm_asyncio
 from playwright.async_api import async_playwright
 
 async def fetch_product_ids(session, category_name, page_num):
-    url = f"https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false"
     try:
-        async with session.get(url, timeout=10) as response:
-            data = response
-            print(data)
-            data = data.json()
-            return [product['id'] for product in data.get('data', {}).get('products', [])]
+        response = requests.get(
+        f'https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false',
+        timeout=5)
+        products = response.json()['data']['products']
+        if len(products) > 0:
+            ids = [product['id'] for product in products]
+            break
+        return ids
     except Exception as e:
         print(f"Error fetching IDs for {category_name}: {str(e)}")
         return []
