@@ -23,7 +23,7 @@ async def fetch_ids_for_page(category_name, page_num, session):
             if len(products) > 0:
                 break
         except Exception as e:
-            print(e)
+            pass
     ids = [product['id'] for product in products]
     return ids
     
@@ -87,9 +87,10 @@ async def process_category(category, context, session, semaphore):
             break
 
     product_limit = min(len(ids), required_count)
+    print('c')
     tasks = [
         asyncio.create_task(process_product(category_name, ids[i], context, semaphore))
-        for i in tqdm(range(product_limit))
+        for i in range(product_limit)
     ]
     results = await asyncio.gather(*tasks)
     # Возвращаем только успешно собранные товары (без None)
