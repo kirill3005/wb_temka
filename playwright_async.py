@@ -44,7 +44,7 @@ async def parse_product(page, product_id, category_name):
             'category': category_name
         }
     except Exception as e:
-        #print(f"Error parsing {product_id}: {str(e)}")
+        print(f"Error parsing {product_id}: {str(e)}")
         return None
 
 async def worker(session, browser, queue, results, category_name, concurrency=5):
