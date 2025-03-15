@@ -5,7 +5,7 @@ from tqdm import tqdm
 from playwright.sync_api import sync_playwright
 import time
 
-with open('to_generate_syntetic.json', 'r', encoding='utf-8') as f:
+with open('to_parse.json', 'r', encoding='utf-8') as f:
     categories = json.load(f)
 
 all_products = []
@@ -37,10 +37,10 @@ with sync_playwright() as p:
                     except:
                         continue
 
-                if len(ids) >= 1000 - cat['count']:
+                if len(ids) >= 100 - cat['count']:
                     break
 
-            for h in range(min((len(ids), 1000 - cat['count']))):
+            for h in range(min((len(ids), 100 - cat['count']))):
                 try:
                     page.goto(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx', timeout=60000)
 
@@ -76,7 +76,7 @@ with sync_playwright() as p:
                     continue
 
             # Сохраняем промежуточные результаты
-            with open('ods_from_wb2.json', 'w', encoding='utf-8') as f:
+            with open('ods_from_wb.json', 'w', encoding='utf-8') as f:
                 json.dump(all_products, f, ensure_ascii=False, indent=4)
 
         except Exception as e:
