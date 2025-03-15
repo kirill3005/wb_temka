@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 def main():
     # Запускаем Playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)  # Можно перевести в True для работы в headless-режиме
+        browser = p.chromium.launch(headless=True)  # Можно перевести в True для работы в headless-режиме
         page = browser.new_page()
 
         # Загружаем категории
