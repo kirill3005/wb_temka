@@ -74,7 +74,7 @@ def main():
 
         for cat in categories:
             category_name, product_ids = fetch_product_ids(cat, variants)
-
+            print(len(product_ids))
             for product_id in product_ids:
                 product = process_product(page, product_id, category_name)
                 if product:
