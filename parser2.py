@@ -3,6 +3,7 @@ import requests
 import random
 import time
 from playwright.sync_api import sync_playwright
+from tqdm import tqdm
 
 def fetch_product_ids(cat, variants):
     """
@@ -72,10 +73,10 @@ def main():
         )
         page = context.new_page()  # Одна вкладка на все товары (ускоряет работу)
 
-        for cat in categories:
+        for cat in tqdm(categories):
             category_name, product_ids = fetch_product_ids(cat, variants)
-            print(len(product_ids))
-            for product_id in product_ids:
+
+            for product_id in tqdm(product_ids):
                 product = process_product(page, product_id, category_name)
                 if product:
                     all_products.append(product)
