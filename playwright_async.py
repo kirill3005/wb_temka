@@ -3,109 +3,118 @@ import json
 import aiohttp
 from tqdm.asyncio import tqdm_asyncio
 from playwright.async_api import async_playwright
-import requests
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+# Конфигурация
+MAX_CONCURRENT_TASKS = 15  # Оптимально для средних серверов
+REQUEST_TIMEOUT = 15
+BROWSER_ARGS = [
+    "--disable-blink-features=AutomationControlled",
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+]
 
 async def fetch_product_ids(session, category_name, page_num):
+    url = f"https://search.wb.ru/exactmatch/ru/common/v9/search?appType=1&curr=rub&dest=-1257786&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30"
     try:
-        response = requests.get(
-        f'https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false',
-        timeout=5)
-        products = response.json()['data']['products']
-        ids = [product['id'] for product in products]
-        return ids
+        async with session.get(url, timeout=REQUEST_TIMEOUT) as response:
+            if response.status != 200:
+                return []
+            data = await response.json()
+            return [product['id'] for product in data.get('data', {}).get('products', [])]
     except Exception as e:
         print(f"Error fetching IDs for {category_name}: {str(e)}")
         return []
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 async def parse_product(page, product_id, category_name):
     try:
-        await page.goto(f"https://www.wildberries.ru/catalog/{product_id}/detail.aspx", timeout=60000)
-        print('a')
-        # Ожидаем загрузки элементов
-        await page.wait_for_selector('.product-page__title', timeout=30000)
-        await page.wait_for_selector('.product-page__btn-detail', timeout=30000)
-        print('b')
-        # Кликаем на кнопку "Подробнее"
-        await page.locator('.product-page__btn-detail').first.click()
-        print('c')
-        # Собираем данные
-        prod_name = await page.locator('.product-page__title').first.inner_text()
-        price = await page.locator('.price-block__final-price').first.inner_text()
+        await page.goto(f"https://www.wildberries.ru/catalog/{product_id}/detail.aspx", 
+                       timeout=60000, wait_until="domcontentloaded")
         
-        # Собираем характеристики
+        # Умное ожидание элементов
+        await page.wait_for_selector('.product-page__title', state="attached", timeout=10000)
+        await page.evaluate("window.scrollBy(0, 200)")  # Имитация скролла
+        
+        # Параллельный сбор данных
+        prod_name, price, details_btn = await asyncio.gather(
+            page.locator('.product-page__title').first.inner_text(),
+            page.locator('.price-block__final-price').first.inner_text(),
+            page.locator('.product-page__btn-detail').first.click(),
+        )
+
+        # Сбор характеристик
         info_names = await page.locator('.product-params__cell-decor').all_text_contents()
         info_data = await page.locator('.product-params__cell').all_text_contents()
-        print('product parsed sucess')
+        
         return {
             'id': product_id,
-            'name': prod_name,
-            'price': price,
+            'name': prod_name.strip(),
+            'price': price.replace('₽', '').strip(),
             'attributes': dict(zip(info_names, info_data)),
             'category': category_name
         }
     except Exception as e:
         print(f"Error parsing {product_id}: {str(e)}")
-        return None
+        raise
 
-async def worker(session, browser, queue, results, category_name, concurrency=5):
+async def worker(browser, queue, results, pbar):
     context = await browser.new_context()
-    semaphore = asyncio.Semaphore(concurrency)
+    page = await context.new_page()
     
-    async def process_product(product_id):
-        async with semaphore:
-            page = await context.new_page()
-            try:
-                result = await parse_product(page, product_id, category_name)
-                if result:
-                    results.append(result)
-            finally:
-                await page.close()
-    
-    tasks = []
     while not queue.empty():
-        product_id = await queue.get()
-        tasks.append(process_product(product_id))
-        queue.task_done()
+        product_id, category = await queue.get()
+        try:
+            result = await parse_product(page, product_id, category)
+            results.append(result)
+            pbar.update(1)
+        except:
+            await queue.put((product_id, category))  Возврат в очередь
+        finally:
+            await page.close()
+            page = await context.new_page()  # Новая страница для след. товара
     
-    await asyncio.gather(*tasks)
     await context.close()
 
 async def main():
     with open('to_parse.json', 'r', encoding='utf-8') as f:
         categories = json.load(f)
-    
+
     all_results = []
+    total_products = sum(min(100 - cat['count'], 100) for cat in categories)
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(
+            headless=True,
+            args=BROWSER_ARGS,
+            proxy={"server": "per-context"}
+        )
         
         async with aiohttp.ClientSession() as session:
-            for category in categories:
-                cat_name = category['cat_name']
-                max_products = 100 - category['count']
-                
-                # Собираем ID товаров
-                product_ids = []
-                for page_num in range(1, 100):
-                    ids = await fetch_product_ids(session, cat_name, page_num)
-                    product_ids.extend(ids)
-                    if len(product_ids) >= max_products:
-                        break
-                
-                product_ids = list(set(product_ids))[:max_products]
-                print(f"Found {len(product_ids)} products for {cat_name}")
-                
-                # Создаем очередь задач
-                queue = asyncio.Queue()
-                for pid in product_ids:
-                    await queue.put(pid)
-                
-                # Запускаем воркеры
-                await worker(session, browser, queue, all_results, cat_name, concurrency=10)
-                
-                # Сохраняем промежуточные результаты
-                with open('ods_from_wb.json', 'w', encoding='utf-8') as f:
-                    json.dump(all_results, f, ensure_ascii=False, indent=4)
+            with tqdm_asyncio(total=total_products, desc="Processing") as pbar:
+                for category in categories:
+                    cat_name = category['cat_name']
+                    max_needed = 100 - category['count']
+                    
+                    # Параллельный сбор ID
+                    tasks = [fetch_product_ids(session, cat_name, p) for p in range(1, 10)]
+                    pages_ids = await asyncio.gather(*tasks)
+                    product_ids = list(set([id for sublist in pages_ids for id in sublist]))[:max_needed]
+                    
+                    # Создаем очередь задач
+                    queue = asyncio.Queue()
+                    for pid in product_ids:
+                        await queue.put((pid, cat_name))
+                    
+                    # Запуск воркеров
+                    workers = [worker(browser, queue, all_results, pbar) 
+                              for _ in range(MAX_CONCURRENT_TASKS)]
+                    await asyncio.gather(*workers)
+                    
+                    # Сохранение чанка
+                    with open('partial_results.json', 'a') as f:
+                        json.dump(all_results[-len(product_ids):], f, ensure_ascii=False)
+                        f.write('\n')
         
         await browser.close()
 
