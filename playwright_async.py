@@ -45,6 +45,7 @@ async def process_product(category_name, product_id, context, semaphore):
     async with semaphore:
         page = await context.new_page()
         try:
+            print('a')
             await page.goto(f'https://www.wildberries.ru/catalog/{product_id}/detail.aspx', timeout=60000)
             await page.wait_for_selector('.product-page__title', timeout=30000)
             prod_name = await page.locator('.product-page__title').first.inner_text()
@@ -68,6 +69,7 @@ async def process_product(category_name, product_id, context, semaphore):
                 'category': category_name,
                 'price': price
             }
+            print('b')
             return product
 
         except Exception as e:
