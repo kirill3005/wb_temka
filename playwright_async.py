@@ -2,6 +2,7 @@ import asyncio
 import json
 import aiohttp
 from playwright.async_api import async_playwright, TimeoutError as PWTimeoutError
+import requests
 
 # Варианты (сохраняем логику оригинального кода, даже если они не подставляются в URL)
 variants = ['stationery3', 'appliances2', '']
