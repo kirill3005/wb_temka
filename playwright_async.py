@@ -68,7 +68,7 @@ async def worker(session, browser, queue, results, category_name, concurrency=5)
     await context.close()
 
 async def main():
-    with open('to_generate_syntetic.json', 'r', encoding='utf-8') as f:
+    with open('to_parse.json', 'r', encoding='utf-8') as f:
         categories = json.load(f)
     
     all_results = []
