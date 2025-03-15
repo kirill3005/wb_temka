@@ -20,8 +20,8 @@ async def fetch_ids_for_page(category_name, page_num, session):
                 'data']['products']
             if len(products) > 0:
                 break
-        except:
-            pass
+        except Exception as e:
+            print(e)
     ids = [product['id'] for product in products]
     return ids
     
