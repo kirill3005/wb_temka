@@ -1,122 +1,94 @@
 import asyncio
 import json
-import aiohttp
-from tqdm.asyncio import tqdm_asyncio
+import requests
 from playwright.async_api import async_playwright
-from tenacity import retry, stop_after_attempt, wait_exponential
 
-# Конфигурация
-MAX_CONCURRENT_TASKS = 15  # Оптимально для средних серверов
-REQUEST_TIMEOUT = 15
-BROWSER_ARGS = [
-    "--disable-blink-features=AutomationControlled",
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-]
+async def fetch_product_ids(cat, variants):
+    """
+    Функция для получения списка ID товаров по категории.
+    """
+    cat_name = cat['cat_name']
+    ids = []
+    # Ищем товары на нескольких страницах
+    for page_num in range(1, 100):
+        for var in variants:
+            try:
+                response = requests.get(
+                    f'https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page={page_num}&query={cat_name}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false',
+                    timeout=5
+                )
+                products = response.json().get('data', {}).get('products', [])
+                if products:
+                    ids.extend([product['id'] for product in products])
+                    break  # Выходим из цикла variants, переходим к следующей странице
+            except Exception:
+                continue
+        # Ограничиваем количество ID по условию
+        if len(ids) >= 100 - cat['count']:
+            break
+    return cat_name, ids[:(100 - cat['count'])]
 
-async def fetch_product_ids(session, category_name, page_num):
-    url = f"https://search.wb.ru/exactmatch/ru/common/v9/search?appType=1&curr=rub&dest=-1257786&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30"
+async def process_product(page, product_id, category):
+    """
+    Функция для обработки одного продукта: переходит на страницу товара, извлекает данные и возвращает словарь.
+    """
     try:
-        async with session.get(url, timeout=REQUEST_TIMEOUT) as response:
-            if response.status != 200:
-                return []
-            data = await response.json()
-            return [product['id'] for product in data.get('data', {}).get('products', [])]
-    except Exception as e:
-        print(f"Error fetching IDs for {category_name}: {str(e)}")
-        return []
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-async def parse_product(page, product_id, category_name):
-    try:
-        await page.goto(f"https://www.wildberries.ru/catalog/{product_id}/detail.aspx", 
-                       timeout=60000, wait_until="domcontentloaded")
-        
-        # Умное ожидание элементов
-        await page.wait_for_selector('.product-page__title', state="attached", timeout=10000)
-        await page.evaluate("window.scrollBy(0, 200)")  # Имитация скролла
-        
-        # Параллельный сбор данных
-        prod_name, price, details_btn = await asyncio.gather(
-            page.locator('.product-page__title').first.inner_text(),
-            page.locator('.price-block__final-price').first.inner_text(),
-            page.locator('.product-page__btn-detail').first.click(),
-        )
-
-        # Сбор характеристик
+        await page.goto(f'https://www.wildberries.ru/catalog/{product_id}/detail.aspx', timeout=60000)
+        await page.wait_for_selector('.product-page__title', timeout=30000)
+        prod_name = await page.locator('.product-page__title').first.inner_text()
+        await page.locator('.product-page__btn-detail').first.click()
+        await page.wait_for_selector('.product-params__cell-decor', timeout=30000)
         info_names = await page.locator('.product-params__cell-decor').all_text_contents()
         info_data = await page.locator('.product-params__cell').all_text_contents()
-        
-        return {
-            'id': product_id,
-            'name': prod_name.strip(),
-            'price': price.replace('₽', '').strip(),
-            'attributes': dict(zip(info_names, info_data)),
-            'category': category_name
-        }
-    except Exception as e:
-        print(f"Error parsing {product_id}: {str(e)}")
-        raise
+        price = await page.locator('.price-block__final-price').first.inner_text()
 
-async def worker(browser, queue, results, pbar):
-    context = await browser.new_context()
-    page = await context.new_page()
-    
-    while not queue.empty():
-        product_id, category = await queue.get()
-        try:
-            result = await parse_product(page, product_id, category)
-            results.append(result)
-            pbar.update(1)
-        except:
-            await queue.put((product_id, category))  Возврат в очередь
-        finally:
-            await page.close()
-            page = await context.new_page()  # Новая страница для след. товара
-    
-    await context.close()
+        # Формируем словарь с атрибутами товара
+        info = {name: data for name, data in zip(info_names, info_data)}
+
+        product = {
+            'id': product_id,
+            'name': prod_name,
+            'attributes': info,
+            'category': category,
+            'price': price
+        }
+        return product
+    except Exception as e:
+        print(f"Error processing product {product_id}: {str(e)}")
+        return None
 
 async def main():
+    # Загружаем категории из файла
     with open('to_parse.json', 'r', encoding='utf-8') as f:
         categories = json.load(f)
+    all_products = []
+    variants = ['stationery3', 'appliances2', '']
 
-    all_results = []
-    total_products = sum(min(100 - cat['count'], 100) for cat in categories)
-    
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=BROWSER_ARGS,
-            proxy={"server": "per-context"}
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'
         )
         
-        async with aiohttp.ClientSession() as session:
-            with tqdm_asyncio(total=total_products, desc="Processing") as pbar:
-                for category in categories:
-                    cat_name = category['cat_name']
-                    max_needed = 100 - category['count']
-                    
-                    # Параллельный сбор ID
-                    tasks = [fetch_product_ids(session, cat_name, p) for p in range(1, 10)]
-                    pages_ids = await asyncio.gather(*tasks)
-                    product_ids = list(set([id for sublist in pages_ids for id in sublist]))[:max_needed]
-                    
-                    # Создаем очередь задач
-                    queue = asyncio.Queue()
-                    for pid in product_ids:
-                        await queue.put((pid, cat_name))
-                    
-                    # Запуск воркеров
-                    workers = [worker(browser, queue, all_results, pbar) 
-                              for _ in range(MAX_CONCURRENT_TASKS)]
-                    await asyncio.gather(*workers)
-                    
-                    # Сохранение чанка
-                    with open('partial_results.json', 'a') as f:
-                        json.dump(all_results[-len(product_ids):], f, ensure_ascii=False)
-                        f.write('\n')
+        tasks = []
+        # Для каждой категории получаем список ID товаров
+        for cat in categories:
+            category_name, product_ids = await fetch_product_ids(cat, variants)
+            for product_id in product_ids:
+                # Для каждого товара создаём новую страницу и добавляем задачу обработки в список задач
+                page = await context.new_page()
+                task = asyncio.create_task(process_product(page, product_id, category_name))
+                tasks.append(task)
         
+        # Выполняем все задачи параллельно
+        results = await asyncio.gather(*tasks)
+        all_products = [product for product in results if product is not None]
+
         await browser.close()
+    
+    # Сохраняем результаты в файл
+    with open('ods_from_wb.json', 'w', encoding='utf-8') as f:
+        json.dump(all_products, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
     asyncio.run(main())
