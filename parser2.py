@@ -11,7 +11,7 @@ def main():
         page = browser.new_page()
 
         # Загружаем категории
-        with open('to_generate_syntetic.json', 'r', encoding='utf-8') as f:
+        with open('to_parse.json', 'r', encoding='utf-8') as f:
             categories = json.load(f)
 
         all_products = []
@@ -44,11 +44,11 @@ def main():
                     # Добавляем id товаров из полученного списка
                     ids.extend([product['id'] for product in products])
                     # Если получено нужное количество товаров, завершаем цикл по страницам
-                    if len(ids) > 1000 - cat.get('count', 0):
+                    if len(ids) > 100 - cat.get('count', 0):
                         break
 
                 # Ограничиваем количество товаров для категории
-                limit = min(len(ids), 1000 - cat.get('count', 0))
+                limit = min(len(ids), 100 - cat.get('count', 0))
                 for h in range(limit):
                     try:
                         product_id = ids[h]
