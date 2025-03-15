@@ -10,9 +10,7 @@ async def fetch_product_ids(session, category_name, page_num):
         f'https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false',
         timeout=5)
         products = response.json()['data']['products']
-        if len(products) > 0:
-            ids = [product['id'] for product in products]
-            break
+        ids = [product['id'] for product in products]
         return ids
     except Exception as e:
         print(f"Error fetching IDs for {category_name}: {str(e)}")
