@@ -49,8 +49,10 @@ for cat in tqdm(categories):
         for h in range(min((len(ids), 100-cat['count']))):
             try:
                 driver.get(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx')
+                print('a')
                 wait = WebDriverWait(driver, 10)
                 element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'product-page__title')))
+                print('b')
                 prod_name = driver.find_element(By.CLASS_NAME, 'product-page__title').text
                 element = driver.find_element(By.CLASS_NAME, 'product-page__btn-detail')
                 element.click()
