@@ -115,7 +115,7 @@ async def main():
             # Параллельно обрабатываем все категории
             category_tasks = [
                 asyncio.create_task(process_category(category, context, session, semaphore))
-                for category in categories
+                for category in categories[:100]
             ]
             category_results = await asyncio.gather(*category_tasks)
             for res in tqdm(category_results):
