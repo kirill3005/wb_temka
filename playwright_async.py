@@ -3,6 +3,7 @@ import json
 import aiohttp
 from tqdm.asyncio import tqdm_asyncio
 from playwright.async_api import async_playwright
+import requests
 
 async def fetch_product_ids(session, category_name, page_num):
     try:
