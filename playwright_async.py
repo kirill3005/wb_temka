@@ -15,7 +15,7 @@ async def fetch_ids_for_page(category_name, page_num, session):
     for var in variants:
         try:
             products = requests.get(
-                f'https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page=1&query={i}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false',
+                f'https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page={page_num}&query={category_name}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false',
                 timeout=2).json()[
                 'data']['products']
             if len(products) > 0:
