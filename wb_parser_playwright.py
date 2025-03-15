@@ -39,7 +39,7 @@ with sync_playwright() as p:
 
                 if len(ids) >= 100 - cat['count']:
                     break
-            for h in tqdm(range(min((len(ids), 100 - cat['count'])))):
+            for h in range(min((len(ids), 100 - cat['count']))):
                 try:
                     page.goto(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx', timeout=60000)
                     # Ждем загрузки заголовка
