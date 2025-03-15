@@ -11,32 +11,19 @@ async def fetch_ids_for_page(category_name, page_num, session):
     Асинхронно получает список id товаров для заданной категории и номера страницы.
     Перебирает варианты до успешного получения товаров.
     """
-    base_url = 'https://search.wb.ru/exactmatch/ru/common/v9/search'
-    params = {
-        'ab_testing': 'false',
-        'appType': '1',
-        'curr': 'rub',
-        'dest': '123586167',
-        'lang': 'ru',
-        'page': page_num,
-        'query': category_name,
-        'resultset': 'catalog',
-        'sort': 'popular',
-        'spp': '30',
-        'suppressSpellcheck': 'false'
-    }
     for var in variants:
-        # Если требуется, можно модифицировать запрос с учетом var (например, объединяя с названием)
         try:
-            async with session.get(base_url, params=params, timeout=5) as response:
-                data = await response.json()
-                products = data.get('data', {}).get('products', [])
-                if products:
-                    return [p['id'] for p in products]
-        except Exception:
-            continue
-    return []
-
+            products = requests.get(
+                f'https://search.wb.ru/exactmatch/ru/common/v9/search?ab_testing=false&appType=1&curr=rub&dest=123586167&lang=ru&page=1&query={i}&resultset=catalog&sort=popular&spp=30&suppressSpellcheck=false',
+                timeout=2).json()[
+                'data']['products']
+            if len(products) > 0:
+                break
+        except:
+            pass
+    ids = [product['id'] for product in products]
+    return ids
+    
 async def process_product(category_name, product_id, context, semaphore):
     """
     Открывает страницу товара, собирает необходимые данные и возвращает словарь с результатом.
