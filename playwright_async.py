@@ -87,7 +87,6 @@ async def main():
                 for page_num in range(1, 100):
                     ids = await fetch_product_ids(session, cat_name, page_num)
                     product_ids.extend(ids)
-                    print(len(product_ids))
                     if len(product_ids) >= max_products:
                         break
                 
