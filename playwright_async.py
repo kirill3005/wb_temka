@@ -9,6 +9,7 @@ async def fetch_product_ids(session, category_name, page_num):
     try:
         async with session.get(url, timeout=10) as response:
             data = await response.json()
+            print(data)
             return [product['id'] for product in data.get('data', {}).get('products', [])]
     except Exception as e:
         print(f"Error fetching IDs for {category_name}: {str(e)}")
