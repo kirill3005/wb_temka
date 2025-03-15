@@ -3,6 +3,7 @@ import json
 import aiohttp
 from playwright.async_api import async_playwright, TimeoutError as PWTimeoutError
 import requests
+from tqdm import tqdm
 
 # Варианты (сохраняем логику оригинального кода, даже если они не подставляются в URL)
 variants = ['stationery3', 'appliances2', '']
@@ -88,7 +89,7 @@ async def process_category(category, context, session, semaphore):
     product_limit = min(len(ids), required_count)
     tasks = [
         asyncio.create_task(process_product(category_name, ids[i], context, semaphore))
-        for i in range(product_limit)
+        for i in tqdm(range(product_limit))
     ]
     results = await asyncio.gather(*tasks)
     # Возвращаем только успешно собранные товары (без None)
@@ -116,7 +117,7 @@ async def main():
                 for category in categories
             ]
             category_results = await asyncio.gather(*category_tasks)
-            for res in category_results:
+            for res in tqdm(category_results):
                 all_products.extend(res)
 
         await browser.close()
