@@ -39,15 +39,12 @@ with sync_playwright() as p:
 
                 if len(ids) >= 100 - cat['count']:
                     break
-            print('parsed products')
             for h in range(min((len(ids), 100 - cat['count']))):
                 try:
                     page.goto(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx', timeout=60000)
-                    print('a')
                     # Ждем загрузки заголовка
                     page.wait_for_selector('.product-page__title', timeout=30000)
                     prod_name = page.locator('.product-page__title').first.inner_text()
-                    print('b')
                     # Кликаем на кнопку "Подробнее"
                     page.locator('.product-page__btn-detail').first.click()
 
