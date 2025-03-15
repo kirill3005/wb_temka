@@ -11,6 +11,7 @@ async def fetch_ids_for_page(category_name, page_num, session):
     Асинхронно получает список id товаров для заданной категории и номера страницы.
     Перебирает варианты до успешного получения товаров.
     """
+    products = []
     for var in variants:
         try:
             products = requests.get(
