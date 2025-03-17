@@ -40,37 +40,38 @@ with sync_playwright() as p:
                 if len(ids) >= 100 - cat['count']:
                     break
             for h in range(min((len(ids), 100 - cat['count']))):
-                try:
-                    page.goto(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx', timeout=60000)
-                    # Ждем загрузки заголовка
-                    page.wait_for_selector('.product-page__title', timeout=30000)
-                    prod_name = page.locator('.product-page__title').first.inner_text()
-                    # Кликаем на кнопку "Подробнее"
-                    page.locator('.product-page__btn-detail').first.click()
-
-                    # Ждем загрузки параметров
-                    page.wait_for_selector('.product-params__cell-decor', timeout=30000)
-
-                    # Собираем данные
-                    info_names = page.locator('.product-params__cell-decor').all_text_contents()
-                    info_data = page.locator('.product-params__cell').all_text_contents()
-                    price = page.locator('.price-block__final-price').first.inner_text()
-
-                    info = {}
-                    for s in range(0, len(info_names)):
-                        info[info_names[s]] = info_data[s]
-
-                    all_products.append({
-                        'id': h,
-                        'name': prod_name,
-                        'attributes': info,
-                        'category': i,
-                        'price': price
-                    })
-
-                except Exception as e:
-                    print(f"Error processing product {ids[h]}: {str(e)}")
-                    continue
+                while True:
+                    try:
+                        page.goto(f'https://www.wildberries.ru/catalog/{ids[h]}/detail.aspx', timeout=60000)
+                        # Ждем загрузки заголовка
+                        page.wait_for_selector('.product-page__title', timeout=30000)
+                        prod_name = page.locator('.product-page__title').first.inner_text()
+                        # Кликаем на кнопку "Подробнее"
+                        page.locator('.product-page__btn-detail').first.click()
+    
+                        # Ждем загрузки параметров
+                        page.wait_for_selector('.product-params__cell-decor', timeout=30000)
+    
+                        # Собираем данные
+                        info_names = page.locator('.product-params__cell-decor').all_text_contents()
+                        info_data = page.locator('.product-params__cell').all_text_contents()
+                        price = page.locator('.price-block__final-price').first.inner_text()
+    
+                        info = {}
+                        for s in range(0, len(info_names)):
+                            info[info_names[s]] = info_data[s]
+    
+                        all_products.append({
+                            'id': h,
+                            'name': prod_name,
+                            'attributes': info,
+                            'category': i,
+                            'price': price
+                        })
+                        break
+    
+                    except Exception as e:
+                        pass
 
             # Сохраняем промежуточные результаты
             with open('ods_from_wb.json', 'w', encoding='utf-8') as f:
