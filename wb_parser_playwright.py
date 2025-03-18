@@ -19,7 +19,7 @@ with sync_playwright() as p:
     )
     page = context.new_page()
 
-    for cat in tqdm(categories):
+    for cat in tqdm(categories[17:]):
         i = cat['cat_name']
         try:
             ids = []
